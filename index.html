@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; img-src 'self'">
+  <title>Claude Launcher</title>
+  <link rel="icon" href="manifest.ico" type="image/x-icon">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <img src="manifest.ico" width="36" height="36" alt="">
+    <h1>Claude Launcher</h1>
+    <span>v1.1.0</span>
+  </div>
+
+  <!-- ============ SETTINGS ============ -->
+  <div id="view-settings" class="view active">
+
+    <!-- Dependency status panel -->
+    <div class="dep-panel">
+      <div class="dep-panel-title">Зависимости</div>
+      <div class="dep-row" id="dep-node">
+        <span class="dep-dot loading"></span>
+        <span class="dep-name">Node.js</span>
+        <span class="dep-ver">проверка...</span>
+      </div>
+      <div class="dep-warn-msg" id="dep-node-warn" style="display:none"></div>
+      <div class="dep-row" id="dep-omniroute">
+        <span class="dep-dot loading"></span>
+        <span class="dep-name">OmniRoute</span>
+        <span class="dep-ver">проверка...</span>
+      </div>
+      <div class="dep-row" id="dep-claude">
+        <span class="dep-dot loading"></span>
+        <span class="dep-name">Claude Code</span>
+        <span class="dep-ver">проверка...</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Base URL</label>
+      <input type="text" id="inp-url" placeholder="http://localhost:20129/v1">
+    </div>
+
+    <div class="field">
+      <label>Auth Token</label>
+      <div class="token-wrapper">
+        <input type="password" id="inp-token" placeholder="sk-0...">
+        <button class="token-toggle" id="btn-eye" title="Показать/скрыть">👁</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Model</label>
+      <select id="sel-model"></select>
+    </div>
+
+    <div class="field custom-model-field" id="custom-field">
+      <label>Custom model name</label>
+      <input type="text" id="inp-custom-model" placeholder="provider/model-name">
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Port</label>
+        <input type="number" id="inp-port" placeholder="20129" min="1" max="65535">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Рабочая папка</label>
+      <div class="folder-row">
+        <input type="text" id="inp-dir" placeholder="C:\\Users\\...\\project" readonly>
+        <button id="btn-browse">Обзор</button>
+      </div>
+    </div>
+
+    <button class="launch-btn" id="btn-launch">Запустить</button>
+  </div>
+
+  <!-- ============ LOGS ============ -->
+  <div id="view-logs" class="view">
+    <div class="log-list" id="log-list"></div>
+    <div id="log-summary" style="display:none"></div>
+    <div class="log-actions">
+      <button class="btn-back" id="btn-back">← Назад</button>
+      <button class="btn-retry" id="btn-retry" disabled>Повторить</button>
+    </div>
+  </div>
+</div>
+
+<script src="renderer.js"></script>
+</body>
+</html>
