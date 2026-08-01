@@ -305,6 +305,6 @@ ISC License
 
 **Создано с ❤️**
 
-[GitHub](https://github.com/Hachiba9020/claude-launcher) • [Issues](https://github.com/Hachiba9020/claude-launcher/issues) • [Releases](https://github.com/Hachiba9020/claude-launcher/releases)
+[GitHub](https://github.com/davidusPLAY228/claude-launcher) • [Issues](https://github.com/davidusPLAY228/claude-launcher/issues) • [Releases](https://github.com/davidusPLAY228/claude-launcher/releases)
 
 </div>
