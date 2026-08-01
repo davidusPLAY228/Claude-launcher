@@ -165,13 +165,13 @@
 
 ### Способ 1: Portable (без установки)
 
-1. Скачайте архив с последней версией из [Releases](https://github.com/Hachiba9020/claude-launcher/releases)
+1. Скачайте архив с последней версией из [Releases](https://github.com/davidusPLAY228/claude-launcher/releases)
 2. Распакуйте в любую папку
 3. Запустите `Claude-launcher.exe`
 
 ### Способ 2: Установщик
 
-1. Скачайте `Claude-launcher-Setup.exe` из [Releases](https://github.com/Hachiba9020/claude-launcher/releases)
+1. Скачайте `Claude-launcher-Setup.exe` из [Releases](https://github.com/davidusPLAY228/claude-launcher/releases)
 2. Запустите установщик
 3. Приложение установится в `C:\Users\%USERNAME%\AppData\Local\Claude-launcher`
 4. Создайте ярлык на рабочем столе через контекстное меню
