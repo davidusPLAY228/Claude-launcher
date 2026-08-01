@@ -303,7 +303,7 @@ ISC License
 
 <div align="center">
 
-**Создано с ❤️ для упрощения работы с Claude Code**
+**Создано с ❤️**
 
 [GitHub](https://github.com/Hachiba9020/claude-launcher) • [Issues](https://github.com/Hachiba9020/claude-launcher/issues) • [Releases](https://github.com/Hachiba9020/claude-launcher/releases)
 
