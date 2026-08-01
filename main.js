@@ -218,13 +218,15 @@ ipcMain.handle('dialog:folder', async () => {
 // ---- IPC: launch ----
 
 ipcMain.handle('launch:omniroute', async (_e, cfg) => {
-  // Извлекаем порт из apiUrl (например, http://localhost:20129 → 20129)
+  // Извлекаем порт и хост из apiUrl (например, http://localhost:20129 → порт 20129, хост localhost)
   let port = 20129; // default
+  let host = 'localhost'; // default
   try {
     const url = new URL(cfg.apiUrl);
     if (url.port) {
       port = parseInt(url.port);
     }
+    host = url.hostname || 'localhost';
   } catch (e) {
     return { ok: false, message: `Некорректный URL API: ${cfg.apiUrl}` };
   }
@@ -233,12 +235,85 @@ ipcMain.handle('launch:omniroute', async (_e, cfg) => {
   if (alreadyRunning) {
     return { ok: true, message: `OmniRoute уже запущен на ${cfg.apiUrl}` };
   }
+
+  // Обновляем .env файлы OmniRoute перед запуском
+  const omnirouteEnvPaths = [
+    path.join(os.homedir(), '.omniroute', '.env'), // ~/.omniroute/.env
+  ];
+
+  // Добавляем путь к .env в node_modules/omniroute
+  try {
+    const omniroutePath = whichCmd('omniroute');
+    if (omniroutePath) {
+      // Путь к omniroute: C:\...\nvm\v22.22.2\node_modules\.bin\omniroute.cmd
+      // Нужен путь: C:\...\nvm\v22.22.2\node_modules\omniroute\.env
+      const nodeModulesOmniroute = path.join(path.dirname(path.dirname(omniroutePath)), 'omniroute', '.env');
+      if (fs.existsSync(path.dirname(nodeModulesOmniroute))) {
+        omnirouteEnvPaths.push(nodeModulesOmniroute);
+      }
+    }
+  } catch (_) {}
+
+  // Обновляем все найденные .env файлы
+  for (const omnirouteEnvPath of omnirouteEnvPaths) {
+    try {
+      const omnirouteDir = path.dirname(omnirouteEnvPath);
+
+      // Создаём папку если не существует
+      if (!fs.existsSync(omnirouteDir)) {
+        fs.mkdirSync(omnirouteDir, { recursive: true });
+      }
+
+      // Читаем существующий .env или создаём новый
+      let envContent = '';
+      if (fs.existsSync(omnirouteEnvPath)) {
+        envContent = fs.readFileSync(omnirouteEnvPath, 'utf-8');
+      }
+
+      // Парсим существующие переменные
+      const envVars = {};
+      envContent.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#')) {
+          const [key, ...valueParts] = trimmed.split('=');
+          if (key) {
+            envVars[key.trim()] = valueParts.join('=').trim();
+          }
+        }
+      });
+
+      // Обновляем PORT и HOST
+      envVars['PORT'] = port.toString();
+      envVars['HOST'] = host;
+
+      // Записываем обратно
+      const newEnvContent = Object.entries(envVars)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('\n');
+      fs.writeFileSync(omnirouteEnvPath, newEnvContent, 'utf-8');
+    } catch (e) {
+      console.error(`Failed to update ${omnirouteEnvPath}:`, e);
+    }
+  }
+
   return new Promise((resolve) => {
-    omnirouteProc = spawn('cmd.exe', ['/c', 'omniroute'], {
-      stdio: 'ignore', detached: true, windowsHide: true,
-      env: { ...process.env, NO_COLOR: '1' }
+    // Создаём PowerShell скрипт для запуска OmniRoute
+    const psScriptPath = path.join(CONFIG_DIR, 'launch-omniroute.ps1');
+    const psContent = `
+# Запуск OmniRoute
+omniroute
+`;
+    fs.writeFileSync(psScriptPath, psContent, 'utf-8');
+
+    // Запускаем через PowerShell с NoExit для отображения вывода
+    omnirouteProc = spawn('cmd.exe', ['/c', `start "OmniRoute - ${cfg.apiUrl}" powershell -NoExit -ExecutionPolicy Bypass -File "${psScriptPath}"`], {
+      stdio: 'ignore',
+      detached: true,
+      windowsHide: true,
+      shell: true
     });
     omnirouteProc.unref();
+
     new Notification({ title: 'Claude Launcher', body: `OmniRoute запускается (${cfg.apiUrl})...`, silent: false }).show();
     waitForPort(port, 30000).then((up) => {
       if (up) resolve({ ok: true, message: `OmniRoute запущен на ${cfg.apiUrl}` });
