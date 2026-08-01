@@ -27,6 +27,7 @@ const depNodeWarn  = $('dep-node-warn');
 let savedModels = [];
 let tokenVisible = false;
 let depsResult = null;
+let processesStopped = false; // Флаг для отслеживания остановки процессов
 
 // ---- Init ----
 (async () => {
@@ -204,7 +205,10 @@ btnBrowse.onclick = async () => {
 
 btnBack.onclick = () => {
   showView('settings');
-  btnReturn.style.display = 'inline-block'; // показать «Вернуться»
+  // Показать кнопку «Вернуться» только если процессы не были остановлены
+  if (!processesStopped) {
+    btnReturn.style.display = 'inline-block';
+  }
 };
 
 btnReturn.onclick = () => {
@@ -218,6 +222,7 @@ btnStop.onclick = async () => {
   const res = await window.api.stopAll();
   btnStop.textContent = 'Остановлено';
   btnStop.disabled = true;
+  processesStopped = true; // Устанавливаем флаг после остановки
   // Обновить summary
   if (res.ok) {
     logSumm.className = 'summary ok';
@@ -326,6 +331,7 @@ async function startLaunch() {
   logList.innerHTML = '';
   logSumm.style.display = 'none';
   btnRetry.disabled = true;
+  processesStopped = false; // Сбрасываем флаг при новом запуске
   showView('logs');
 
   let errors = 0;

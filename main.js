@@ -317,25 +317,64 @@ ipcMain.handle('stop:all', async () => {
 
   // Убить все процессы OmniRoute (даже запущенные не через приложение)
   try {
-    // Используем Get-CimInstance с правильным экранированием
-    // Используем \\" для экранирования внутренних кавычек
-    const psCmd = `Get-CimInstance Win32_Process -Filter \\"name='node.exe'\\" | Where-Object { $_.CommandLine -like '*omniroute*' } | Select-Object -ExpandProperty ProcessId`;
-    const psOut = execSync(`powershell -Command "${psCmd}"`, {
+    // Создаём временный PowerShell скрипт для получения процессов node.exe с omniroute и их родителей
+    const psScript1 = path.join(CONFIG_DIR, 'find-omniroute.ps1');
+    const psContent1 = `
+$nodeProcesses = Get-CimInstance Win32_Process -Filter "name='node.exe'" | Where-Object { $_.CommandLine -like '*omniroute*' }
+foreach ($proc in $nodeProcesses) {
+  # Выводим PID процесса node.exe
+  Write-Output $proc.ProcessId
+  # Выводим PID родительского процесса (cmd.exe или powershell.exe)
+  Write-Output "parent:$($proc.ParentProcessId)"
+}
+`;
+    fs.writeFileSync(psScript1, psContent1, 'utf-8');
+
+    const psOut = execSync(`powershell -ExecutionPolicy Bypass -File "${psScript1}"`, {
       encoding: 'utf-8',
       windowsHide: true,
       timeout: 5000
     }).trim();
 
+    // Удаляем временный скрипт
+    try { fs.unlinkSync(psScript1); } catch (_) {}
+
     if (psOut) {
-      const pids = psOut.split('\n').map(l => l.trim()).filter(l => l && /^\d+$/.test(l));
-      if (pids.length > 0) {
-        for (const pid of pids) {
-          try {
-            execSync(`taskkill /pid ${pid} /T /F`, { windowsHide: true });
-          } catch (_) {}
+      const lines = psOut.split('\n').map(l => l.trim()).filter(l => l);
+      const nodePids = [];
+      const parentPids = new Set();
+
+      for (const line of lines) {
+        if (/^\d+$/.test(line)) {
+          nodePids.push(line);
+        } else if (line.startsWith('parent:')) {
+          const pid = line.replace('parent:', '');
+          if (/^\d+$/.test(pid)) {
+            parentPids.add(pid);
+          }
         }
-        omnirouteProc = null;
-        results.push(`OmniRoute остановлен (${pids.length} процесс(ов))`);
+      }
+
+      let stoppedCount = 0;
+
+      // Убиваем процессы node.exe
+      for (const pid of nodePids) {
+        try {
+          execSync(`taskkill /pid ${pid} /T /F`, { windowsHide: true });
+          stoppedCount++;
+        } catch (_) {}
+      }
+
+      // Убиваем родительские терминалы (cmd.exe, powershell.exe)
+      for (const pid of parentPids) {
+        try {
+          execSync(`taskkill /pid ${pid} /T /F`, { windowsHide: true });
+        } catch (_) {}
+      }
+
+      omnirouteProc = null;
+      if (stoppedCount > 0) {
+        results.push(`OmniRoute остановлен (${stoppedCount} процесс(ов))`);
       } else {
         results.push('OmniRoute: не запущен');
       }
@@ -348,13 +387,19 @@ ipcMain.handle('stop:all', async () => {
 
   // Убить Claude и все связанные PowerShell процессы
   try {
-    // Используем Get-CimInstance с правильным экранированием
-    const psCmd = `Get-CimInstance Win32_Process -Filter \\"name='powershell.exe'\\" | Where-Object { $_.CommandLine -like '*run-claude.ps1*' } | Select-Object -ExpandProperty ProcessId`;
-    const psOut = execSync(`powershell -Command "${psCmd}"`, {
+    // Создаём временный PowerShell скрипт для получения процессов powershell.exe с run-claude.ps1
+    const psScript2 = path.join(CONFIG_DIR, 'find-claude.ps1');
+    const psContent2 = `Get-CimInstance Win32_Process -Filter "name='powershell.exe'" | Where-Object { $_.CommandLine -like '*run-claude.ps1*' } | Select-Object -ExpandProperty ProcessId`;
+    fs.writeFileSync(psScript2, psContent2, 'utf-8');
+
+    const psOut = execSync(`powershell -ExecutionPolicy Bypass -File "${psScript2}"`, {
       encoding: 'utf-8',
       windowsHide: true,
       timeout: 5000
     }).trim();
+
+    // Удаляем временный скрипт
+    try { fs.unlinkSync(psScript2); } catch (_) {}
 
     let stopped = false;
 
