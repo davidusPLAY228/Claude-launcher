@@ -1,5 +1,11 @@
 const $ = (id) => document.getElementById(id);
 
+const sidebar = $('sidebar');
+const sidebarToggle = $('sidebar-toggle');
+const sbOmniroute = $('sb-omniroute');
+const sbOmnirouteIcon = $('sb-omniroute-icon');
+const sbOmnirouteLabel = $('sb-omniroute-label');
+const sbNvm = $('sb-nvm');
 const inpApiUrl = $('inp-api-url');
 const inpToken  = $('inp-token');
 const selModel  = $('sel-model');
@@ -28,6 +34,7 @@ let savedModels = [];
 let tokenVisible = false;
 let depsResult = null;
 let processesStopped = false; // Флаг для отслеживания остановки процессов
+let omnirouteRunning = false; // Флаг статуса OmniRoute
 
 // ---- Init ----
 (async () => {
@@ -41,7 +48,26 @@ let processesStopped = false; // Флаг для отслеживания ост
 
   // Run dependency checks
   checkDependencies();
+
+  // Проверяем статус OmniRoute при запуске
+  await updateOmniRouteStatus();
 })();
+
+// ---- Update OmniRoute status and icon ----
+async function updateOmniRouteStatus() {
+  const status = await window.api.checkOmniRouteStatus();
+  omnirouteRunning = status.running;
+
+  if (omnirouteRunning) {
+    sbOmnirouteIcon.src = './assets/icon-pause.svg';
+    sbOmniroute.title = 'Остановить OmniRoute';
+    sbOmnirouteLabel.textContent = 'Остановить OmniRoute';
+  } else {
+    sbOmnirouteIcon.src = './assets/icon-omniroute.svg';
+    sbOmniroute.title = 'Запуск OmniRoute';
+    sbOmnirouteLabel.textContent = 'Запуск OmniRoute';
+  }
+}
 
 // ---- Dependency checking ----
 async function checkDependencies() {
@@ -201,6 +227,45 @@ btnEye.onclick = () => {
 btnBrowse.onclick = async () => {
   const dir = await window.api.pickFolder();
   if (dir) inpDir.value = dir;
+};
+
+// Sidebar toggle
+sidebarToggle.onclick = () => {
+  sidebar.classList.toggle('expanded');
+};
+
+// Запуск/остановка OmniRoute через sidebar
+sbOmniroute.onclick = async () => {
+  await updateOmniRouteStatus(); // Обновляем статус перед действием
+
+  if (omnirouteRunning) {
+    // OmniRoute запущен, предлагаем остановить
+    const confirmed = confirm('OmniRoute уже запущен. Остановить его?');
+    if (confirmed) {
+      const res = await window.api.stopAll();
+      if (res.ok) {
+        alert('OmniRoute остановлен');
+        await updateOmniRouteStatus(); // Обновляем иконку после остановки
+      } else {
+        alert('Не удалось остановить OmniRoute');
+      }
+    }
+  } else {
+    // OmniRoute не запущен, запускаем
+    const cfg = getConfig();
+    const res = await window.api.launchOmniRoute(cfg);
+    if (res.ok) {
+      alert(res.message);
+      await updateOmniRouteStatus(); // Обновляем иконку после запуска
+    } else {
+      alert(`Ошибка: ${res.message}`);
+    }
+  }
+};
+
+// Открытие ссылки для установки nvm
+sbNvm.onclick = async () => {
+  await window.api.openExternal('https://www.nvmnode.com/ru/guide/download.html');
 };
 
 btnBack.onclick = () => {

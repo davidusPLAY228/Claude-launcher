@@ -9,5 +9,7 @@ contextBridge.exposeInMainWorld('api', {
   checkDeps: () => ipcRenderer.invoke('check:deps'),
   installOmniRoute: () => ipcRenderer.invoke('install:omniroute'),
   installClaude: () => ipcRenderer.invoke('install:claude'),
-  stopAll: () => ipcRenderer.invoke('stop:all')
+  stopAll: () => ipcRenderer.invoke('stop:all'),
+  openExternal: (url) => ipcRenderer.invoke('open:external', url),
+  checkOmniRouteStatus: () => ipcRenderer.invoke('check:omniroute-status')
 });

@@ -188,7 +188,7 @@ ipcMain.handle('install:claude', async () => {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 560, height: 680, minWidth: 480, minHeight: 580,
+    width: 660, height: 680, minWidth: 580, minHeight: 580,
     resizable: false, title: 'Claude Launcher',
     backgroundColor: '#1a1a1a',
     icon: path.join(__dirname, 'manifest.ico'),
@@ -436,6 +436,42 @@ foreach ($proc in $nodeProcesses) {
   }
 
   return { ok: true, messages: results };
+});
+
+// ---- IPC: open external links ----
+
+ipcMain.handle('open:external', async (_e, url) => {
+  try {
+    await shell.openExternal(url);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e.message };
+  }
+});
+
+// ---- IPC: check OmniRoute status ----
+
+ipcMain.handle('check:omniroute-status', async () => {
+  try {
+    // Создаём временный PowerShell скрипт для проверки запущен ли OmniRoute
+    const psScript = path.join(CONFIG_DIR, 'check-omniroute.ps1');
+    const psContent = `Get-CimInstance Win32_Process -Filter "name='node.exe'" | Where-Object { $_.CommandLine -like '*omniroute*' } | Select-Object -ExpandProperty ProcessId`;
+    fs.writeFileSync(psScript, psContent, 'utf-8');
+
+    const psOut = execSync(`powershell -ExecutionPolicy Bypass -File "${psScript}"`, {
+      encoding: 'utf-8',
+      windowsHide: true,
+      timeout: 5000
+    }).trim();
+
+    // Удаляем временный скрипт
+    try { fs.unlinkSync(psScript); } catch (_) {}
+
+    const running = psOut && psOut.split('\n').filter(l => l.trim() && /^\d+$/.test(l.trim())).length > 0;
+    return { running };
+  } catch (e) {
+    return { running: false };
+  }
 });
 
 app.whenReady().then(createWindow);

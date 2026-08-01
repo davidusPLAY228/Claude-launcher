@@ -33,8 +33,100 @@ body {
 
 .app {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   height: 100vh;
+}
+
+/* ---- Sidebar ---- */
+.sidebar {
+  width: 52px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.25s ease;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sidebar.expanded {
+  width: 220px;
+}
+
+.sidebar-toggle {
+  width: 52px;
+  height: 52px;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.sidebar-toggle:hover {
+  background: var(--surface2);
+}
+
+.sidebar-toggle img {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.25s ease;
+}
+
+.sidebar.expanded .sidebar-toggle img {
+  transform: rotate(90deg);
+}
+
+.sidebar-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  width: 100%;
+  text-align: left;
+}
+
+.sidebar-item:hover {
+  background: var(--surface2);
+}
+
+.sidebar-item img {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: var(--text);
+}
+
+.sidebar-label {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.25s ease, width 0.25s ease;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sidebar.expanded .sidebar-label {
+  opacity: 1;
+  width: auto;
 }
 
 .app-content {
