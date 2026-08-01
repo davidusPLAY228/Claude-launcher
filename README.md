@@ -17,7 +17,7 @@
 ---
 
 > **Разработано:** Hachiba9020  
-> **GitHub:** https://github.com/Hachiba9020/claude-launcher
+> **GitHub:** https://github.com/davidusPLAY228/claude-launcher
 
 ---
 <br>
