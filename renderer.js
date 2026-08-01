@@ -6,6 +6,7 @@ const sbOmniroute = $('sb-omniroute');
 const sbOmnirouteIcon = $('sb-omniroute-icon');
 const sbOmnirouteLabel = $('sb-omniroute-label');
 const sbNvm = $('sb-nvm');
+const sbStopClaude = $('sb-stop-claude');
 const inpApiUrl = $('inp-api-url');
 const inpToken  = $('inp-token');
 const selModel  = $('sel-model');
@@ -270,6 +271,20 @@ sbOmniroute.onclick = async () => {
 // Открытие ссылки для установки nvm
 sbNvm.onclick = async () => {
   await window.api.openExternal('https://www.nvmnode.com/ru/guide/download.html');
+};
+
+// Остановка всех процессов Claude через sidebar
+sbStopClaude.onclick = async () => {
+  const confirmed = confirm('Остановить все запущенные процессы Claude?');
+  if (confirmed) {
+    const res = await window.api.stopClaude();
+    if (res.ok) {
+      alert(res.messages.join('\n'));
+      processesStopped = true;
+    } else {
+      alert('Не удалось остановить процессы');
+    }
+  }
 };
 
 btnBack.onclick = () => {

@@ -516,6 +516,64 @@ foreach ($proc in $nodeProcesses) {
   return { ok: true, messages: results };
 });
 
+// ---- IPC: stop Claude only ----
+
+ipcMain.handle('stop:claude', async () => {
+  const results = [];
+
+  // Убить Claude и все связанные PowerShell процессы
+  try {
+    // Создаём временный PowerShell скрипт для получения процессов powershell.exe с run-claude.ps1
+    const psScript2 = path.join(CONFIG_DIR, 'find-claude.ps1');
+    const psContent2 = `Get-CimInstance Win32_Process -Filter "name='powershell.exe'" | Where-Object { $_.CommandLine -like '*run-claude.ps1*' } | Select-Object -ExpandProperty ProcessId`;
+    fs.writeFileSync(psScript2, psContent2, 'utf-8');
+
+    const psOut = execSync(`powershell -ExecutionPolicy Bypass -File "${psScript2}"`, {
+      encoding: 'utf-8',
+      windowsHide: true,
+      timeout: 5000
+    }).trim();
+
+    // Удаляем временный скрипт
+    try { fs.unlinkSync(psScript2); } catch (_) {}
+
+    let stopped = false;
+
+    if (psOut) {
+      const pids = psOut.split('\n').map(l => l.trim()).filter(l => l && /^\d+$/.test(l));
+      if (pids.length > 0) {
+        for (const pid of pids) {
+          try {
+            execSync(`taskkill /pid ${pid} /T /F`, { windowsHide: true });
+            stopped = true;
+          } catch (_) {}
+        }
+        claudeProc = null;
+        results.push(`Claude остановлен (${pids.length} процесс(ов) PowerShell)`);
+      }
+    }
+
+    // Дополнительно убиваем все claude.exe процессы (на случай если остались)
+    try {
+      execSync('taskkill /IM "claude.exe" /F', { windowsHide: true });
+      if (!stopped) {
+        stopped = true;
+        results.push('Claude остановлен');
+      }
+    } catch (_) {
+      if (!stopped) {
+        results.push('Claude: не запущен');
+      }
+    }
+
+    claudeProc = null;
+  } catch (e) {
+    results.push(`Claude: не найден или не запущен`);
+  }
+
+  return { ok: true, messages: results };
+});
+
 // ---- IPC: open external links ----
 
 ipcMain.handle('open:external', async (_e, url) => {
