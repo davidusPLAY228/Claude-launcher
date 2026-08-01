@@ -1,6 +1,6 @@
 {
   "name": "claude-launcher",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "GUI launcher for Claude Code with OmniRoute",
   "main": "main.js",
   "scripts": {
