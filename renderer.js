@@ -12,6 +12,7 @@ const selModel  = $('sel-model');
 const customF   = $('custom-field');
 const inpCustom = $('inp-custom-model');
 const inpDir    = $('inp-dir');
+const chkResume = $('chk-resume');
 const btnLaunch = $('btn-launch');
 const btnReturn = $('btn-return');
 const btnEye    = $('btn-eye');
@@ -21,6 +22,7 @@ const viewLog   = $('view-logs');
 const logList   = $('log-list');
 const logSumm   = $('log-summary');
 const btnBack   = $('btn-back');
+const btnAbort  = $('btn-abort');
 const btnStop   = $('btn-stop');
 const btnRetry  = $('btn-retry');
 
@@ -45,6 +47,7 @@ let omnirouteRunning = false; // Флаг статуса OmniRoute
   inpToken.value  = cfg.authToken;
   inpDir.value    = cfg.workDir;
   inpCustom.value = cfg.customModel;
+  chkResume.checked = cfg.resumeChat || false;
 
   // Run dependency checks
   checkDependencies();
@@ -204,6 +207,7 @@ function getConfig() {
     model:       selModel.value,
     customModel: inpCustom.value.trim(),
     workDir:     inpDir.value.trim(),
+    resumeChat:  chkResume.checked,
     models:      savedModels
   };
 }
@@ -276,6 +280,27 @@ btnBack.onclick = () => {
   }
 };
 
+btnAbort.onclick = async () => {
+  btnAbort.disabled = true;
+  btnAbort.textContent = 'Прерывание...';
+  const res = await window.api.stopAll();
+  processesStopped = true;
+
+  if (res.ok) {
+    logSumm.style.display = 'block';
+    logSumm.className = 'summary ok';
+    logSumm.innerHTML = `
+      <div class="summary-title">Прервано</div>
+      <div class="summary-sub">${res.messages.join(', ')}</div>
+    `;
+  }
+
+  // Возвращаемся к настройкам
+  showView('settings');
+  btnAbort.disabled = false;
+  btnAbort.textContent = 'Прервать';
+};
+
 btnReturn.onclick = () => {
   btnReturn.style.display = 'none';
   showView('logs');
@@ -284,6 +309,7 @@ btnReturn.onclick = () => {
 btnStop.onclick = async () => {
   btnStop.disabled = true;
   btnStop.textContent = 'Остановка...';
+  btnAbort.disabled = true; // Отключаем кнопку "Прервать"
   const res = await window.api.stopAll();
   btnStop.textContent = 'Остановлено';
   btnStop.disabled = true;

@@ -351,13 +351,16 @@ ipcMain.handle('launch:claude', async (_e, cfg) => {
     return (v || '').replace(/'/g, "''");
   }
 
+  // Формируем команду запуска Claude с флагом --resume если нужно
+  const claudeCmd = cfg.resumeChat ? 'claude --resume' : 'claude';
+
   const ps1Content = [
     `Set-Location -LiteralPath '${psSafe(dir)}'`,
     `$env:ANTHROPIC_API_KEY = '${psSafe(cfg.authToken)}'`,
     `$env:ANTHROPIC_BASE_URL = '${psSafe(baseUrl)}'`,
     `$env:ANTHROPIC_MODEL = '${psSafe(model)}'`,
     `$env:CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS = '1'`,
-    `claude`,
+    claudeCmd,
     `if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {`,
     `  Write-Host ''`,
     `  Write-Host "Claude exited with code $LASTEXITCODE" -ForegroundColor Red`,
