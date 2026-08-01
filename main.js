@@ -12,11 +12,10 @@ const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
 const RECOMMENDED_NODE = '22.22.2';
 
 const DEFAULT_CONFIG = {
-  baseUrl: 'http://localhost:20129/v1',
+  apiUrl: 'http://localhost:20129',
   authToken: '',
   model: 'oc/deepseek-v4-flash-free',
   customModel: '',
-  port: 20129,
   workDir: '',
   models: [
     'oc/deepseek-v4-flash-free',
@@ -219,10 +218,20 @@ ipcMain.handle('dialog:folder', async () => {
 // ---- IPC: launch ----
 
 ipcMain.handle('launch:omniroute', async (_e, cfg) => {
-  const port = cfg.port || 20129;
+  // Извлекаем порт из apiUrl (например, http://localhost:20129 → 20129)
+  let port = 20129; // default
+  try {
+    const url = new URL(cfg.apiUrl);
+    if (url.port) {
+      port = parseInt(url.port);
+    }
+  } catch (e) {
+    return { ok: false, message: `Некорректный URL API: ${cfg.apiUrl}` };
+  }
+
   const alreadyRunning = await checkPort(port);
   if (alreadyRunning) {
-    return { ok: true, message: `OmniRoute уже запущен на порту ${port}` };
+    return { ok: true, message: `OmniRoute уже запущен на ${cfg.apiUrl}` };
   }
   return new Promise((resolve) => {
     omnirouteProc = spawn('cmd.exe', ['/c', 'omniroute'], {
@@ -230,10 +239,10 @@ ipcMain.handle('launch:omniroute', async (_e, cfg) => {
       env: { ...process.env, NO_COLOR: '1' }
     });
     omnirouteProc.unref();
-    new Notification({ title: 'Claude Launcher', body: `OmniRoute запускается (порт ${port})...`, silent: false }).show();
+    new Notification({ title: 'Claude Launcher', body: `OmniRoute запускается (${cfg.apiUrl})...`, silent: false }).show();
     waitForPort(port, 30000).then((up) => {
-      if (up) resolve({ ok: true, message: `OmniRoute запущен на порту ${port}` });
-      else resolve({ ok: false, message: `Таймаут ожидания OmniRoute (порт ${port})` });
+      if (up) resolve({ ok: true, message: `OmniRoute запущен на ${cfg.apiUrl}` });
+      else resolve({ ok: false, message: `Таймаут ожидания OmniRoute (${cfg.apiUrl})` });
     });
   });
 });
@@ -245,8 +254,11 @@ ipcMain.handle('launch:claude', async (_e, cfg) => {
   }
 
   const model = cfg.model === '__custom__' ? cfg.customModel : cfg.model;
-  // Always derive baseUrl from port to avoid desync when user changes port
-  const baseUrl = `http://localhost:${cfg.port || 20129}/v1`;
+  // Используем apiUrl напрямую, добавляя /v1 если его нет
+  let baseUrl = cfg.apiUrl;
+  if (!baseUrl.endsWith('/v1')) {
+    baseUrl = `${baseUrl}/v1`;
+  }
 
   // Find claude executable path
   const claudePath = whichCmd('claude');
@@ -296,6 +308,89 @@ ipcMain.handle('launch:claude', async (_e, cfg) => {
       resolve({ ok: true, message: `Claude запускается в ${dir}` });
     }, 1000);
   });
+});
+
+// ---- IPC: stop processes ----
+
+ipcMain.handle('stop:all', async () => {
+  const results = [];
+
+  // Убить все процессы OmniRoute (даже запущенные не через приложение)
+  try {
+    // Используем Get-CimInstance с правильным экранированием
+    // Используем \\" для экранирования внутренних кавычек
+    const psCmd = `Get-CimInstance Win32_Process -Filter \\"name='node.exe'\\" | Where-Object { $_.CommandLine -like '*omniroute*' } | Select-Object -ExpandProperty ProcessId`;
+    const psOut = execSync(`powershell -Command "${psCmd}"`, {
+      encoding: 'utf-8',
+      windowsHide: true,
+      timeout: 5000
+    }).trim();
+
+    if (psOut) {
+      const pids = psOut.split('\n').map(l => l.trim()).filter(l => l && /^\d+$/.test(l));
+      if (pids.length > 0) {
+        for (const pid of pids) {
+          try {
+            execSync(`taskkill /pid ${pid} /T /F`, { windowsHide: true });
+          } catch (_) {}
+        }
+        omnirouteProc = null;
+        results.push(`OmniRoute остановлен (${pids.length} процесс(ов))`);
+      } else {
+        results.push('OmniRoute: не запущен');
+      }
+    } else {
+      results.push('OmniRoute: не запущен');
+    }
+  } catch (e) {
+    results.push(`OmniRoute: не найден или не запущен`);
+  }
+
+  // Убить Claude и все связанные PowerShell процессы
+  try {
+    // Используем Get-CimInstance с правильным экранированием
+    const psCmd = `Get-CimInstance Win32_Process -Filter \\"name='powershell.exe'\\" | Where-Object { $_.CommandLine -like '*run-claude.ps1*' } | Select-Object -ExpandProperty ProcessId`;
+    const psOut = execSync(`powershell -Command "${psCmd}"`, {
+      encoding: 'utf-8',
+      windowsHide: true,
+      timeout: 5000
+    }).trim();
+
+    let stopped = false;
+
+    if (psOut) {
+      const pids = psOut.split('\n').map(l => l.trim()).filter(l => l && /^\d+$/.test(l));
+      if (pids.length > 0) {
+        for (const pid of pids) {
+          try {
+            execSync(`taskkill /pid ${pid} /T /F`, { windowsHide: true });
+            stopped = true;
+          } catch (_) {}
+        }
+        claudeProc = null;
+        results.push(`Claude остановлен (${pids.length} процесс(ов) PowerShell)`);
+      }
+    }
+
+    // Дополнительно убиваем все claude.exe процессы (на случай если остались)
+    try {
+      execSync('taskkill /IM "claude.exe" /F', { windowsHide: true });
+      if (!stopped) {
+        stopped = true;
+        results.push('Claude остановлен');
+      }
+    } catch (_) {
+      if (!stopped) {
+        results.push('Claude: не запущен');
+      }
+    }
+
+    claudeProc = null;
+  } catch (e) {
+    results.push(`Claude: не найден или не запущен`);
+  }
+
+  return { ok: true, messages: results };
 });
 
 app.whenReady().then(createWindow);

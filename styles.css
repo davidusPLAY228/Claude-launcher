@@ -35,7 +35,15 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+}
+
+.app-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   padding: 20px 24px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* ---- Header ---- */
@@ -296,7 +304,7 @@ body {
 
 /* ---- Launch button ---- */
 .launch-btn {
-  margin-top: auto;
+  flex: 1;
   height: 42px;
   background: var(--accent);
   color: #1a1a1a;
@@ -323,6 +331,31 @@ body {
   opacity: 0.4;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* ---- Return button ---- */
+.btn-return {
+  flex: 1;
+  height: 42px;
+  background: var(--ok);
+  color: #1a1a1a;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s, box-shadow 0.15s;
+  letter-spacing: -0.2px;
+}
+
+.btn-return:hover {
+  background: #4a9f4a;
+  box-shadow: 0 4px 16px rgba(92, 184, 92, 0.25);
+}
+
+.btn-return:active {
+  background: #3d8b3d;
 }
 
 /* ---- Log view ---- */
@@ -492,6 +525,21 @@ body {
 
 .btn-back:hover {
   background: var(--border);
+}
+
+.btn-stop {
+  background: var(--danger);
+  border: 1px solid var(--danger);
+  color: #fff;
+}
+
+.btn-stop:hover {
+  background: #c94545;
+}
+
+.btn-stop:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .btn-retry {

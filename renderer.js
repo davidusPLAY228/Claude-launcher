@@ -1,13 +1,13 @@
 const $ = (id) => document.getElementById(id);
 
-const inpUrl    = $('inp-url');
+const inpApiUrl = $('inp-api-url');
 const inpToken  = $('inp-token');
 const selModel  = $('sel-model');
 const customF   = $('custom-field');
 const inpCustom = $('inp-custom-model');
-const inpPort   = $('inp-port');
 const inpDir    = $('inp-dir');
 const btnLaunch = $('btn-launch');
+const btnReturn = $('btn-return');
 const btnEye    = $('btn-eye');
 const btnBrowse = $('btn-browse');
 const viewSet   = $('view-settings');
@@ -15,6 +15,7 @@ const viewLog   = $('view-logs');
 const logList   = $('log-list');
 const logSumm   = $('log-summary');
 const btnBack   = $('btn-back');
+const btnStop   = $('btn-stop');
 const btnRetry  = $('btn-retry');
 
 // Dependency check elements
@@ -32,9 +33,8 @@ let depsResult = null;
   const cfg = await window.api.loadConfig();
   savedModels = cfg.models || [];
   fillModelSelect(cfg);
-  inpUrl.value    = cfg.baseUrl;
+  inpApiUrl.value = cfg.apiUrl || 'http://localhost:20129';
   inpToken.value  = cfg.authToken;
-  inpPort.value   = cfg.port;
   inpDir.value    = cfg.workDir;
   inpCustom.value = cfg.customModel;
 
@@ -165,12 +165,17 @@ function fillModelSelect(cfg) {
 }
 
 function getConfig() {
+  // Удаляем завершающий слеш, если он есть
+  let apiUrl = inpApiUrl.value.trim();
+  if (apiUrl.endsWith('/')) {
+    apiUrl = apiUrl.slice(0, -1);
+  }
+
   return {
-    baseUrl:     inpUrl.value.trim(),
+    apiUrl:      apiUrl,
     authToken:   inpToken.value.trim(),
     model:       selModel.value,
     customModel: inpCustom.value.trim(),
-    port:        parseInt(inpPort.value) || 20129,
     workDir:     inpDir.value.trim(),
     models:      savedModels
   };
@@ -197,7 +202,32 @@ btnBrowse.onclick = async () => {
   if (dir) inpDir.value = dir;
 };
 
-btnBack.onclick = () => { showView('settings'); };
+btnBack.onclick = () => {
+  showView('settings');
+  btnReturn.style.display = 'inline-block'; // показать «Вернуться»
+};
+
+btnReturn.onclick = () => {
+  btnReturn.style.display = 'none';
+  showView('logs');
+};
+
+btnStop.onclick = async () => {
+  btnStop.disabled = true;
+  btnStop.textContent = 'Остановка...';
+  const res = await window.api.stopAll();
+  btnStop.textContent = 'Остановлено';
+  btnStop.disabled = true;
+  // Обновить summary
+  if (res.ok) {
+    logSumm.className = 'summary ok';
+    logSumm.innerHTML = `
+      <div class="summary-title">Остановлено</div>
+      <div class="summary-sub">${res.messages.join(', ')}</div>
+    `;
+  }
+};
+
 btnRetry.onclick = () => { startLaunch(); };
 btnLaunch.onclick = () => { startLaunch(); };
 
@@ -245,6 +275,13 @@ function showSummary(ok, total, errors) {
     <div class="summary-sub">${total - errors}/${total} стадий выполнено успешно, ошибок: ${errors}</div>
   `;
   btnRetry.disabled = ok;
+
+  // Показать кнопку Stop только при успешном запуске
+  btnStop.style.display = ok ? 'inline-block' : 'none';
+  if (ok) {
+    btnStop.disabled = false;
+    btnStop.textContent = 'Stop';
+  }
 }
 
 // ---- Launch pipeline ----
@@ -298,27 +335,25 @@ async function startLaunch() {
   addLog('p1', 'P1: Применение настроек',
     `<code>1.</code> Key=${maskToken(cfg.authToken)}<br>` +
     `<code>2.</code> Model=<code>${modelDisplay}</code><br>` +
-    `<code>3.</code> URL=<code>${cfg.baseUrl}</code><br>` +
-    `<code>4.</code> Port=<code>${cfg.port}</code>`,
+    `<code>3.</code> API URL=<code>${cfg.apiUrl}</code>`,
     'pending');
   await delay(400);
   updateLog('p1',
     `<code>1.</code> Key=${maskToken(cfg.authToken)}<br>` +
     `<code>2.</code> Model=<code>${modelDisplay}</code><br>` +
-    `<code>3.</code> URL=<code>${cfg.baseUrl}</code><br>` +
-    `<code>4.</code> Port=<code>${cfg.port}</code>`,
+    `<code>3.</code> API URL=<code>${cfg.apiUrl}</code>`,
     'ok');
 
   // P2: OmniRoute
   addLog('p2', 'P2: Открытие OmniRoute',
-    `Проверка порта <code>${cfg.port}</code>...`,
+    `Проверка доступности <code>${cfg.apiUrl}</code>...`,
     'pending');
   await delay(300);
 
   try {
     const res = await window.api.launchOmniRoute(cfg);
     if (res.ok) {
-      updateLog('p2', `OmniRoute готов по адресу <code>http://127.0.0.1:${cfg.port}</code>`, 'ok');
+      updateLog('p2', `OmniRoute готов по адресу <code>${cfg.apiUrl}</code>`, 'ok');
     } else {
       updateLog('p2', res.message, 'err');
       errors++;

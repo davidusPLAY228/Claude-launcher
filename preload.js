@@ -8,5 +8,6 @@ contextBridge.exposeInMainWorld('api', {
   launchClaude: (cfg) => ipcRenderer.invoke('launch:claude', cfg),
   checkDeps: () => ipcRenderer.invoke('check:deps'),
   installOmniRoute: () => ipcRenderer.invoke('install:omniroute'),
-  installClaude: () => ipcRenderer.invoke('install:claude')
+  installClaude: () => ipcRenderer.invoke('install:claude'),
+  stopAll: () => ipcRenderer.invoke('stop:all')
 });
